@@ -2,5 +2,5 @@
 .gitattributes
 index.html
 src
-img
+/img/*
 *.tgz
