@@ -54,8 +54,9 @@
 <script type="text/javascript">
 
     var options = {
-                    showRotationControls : false,    //If the rotation controls should be shown
-                    minLoadingTime: 200 //The minimum amount of time in ms the loading animation should be shown (by default it shows the images immediately)
+                    showRotationControls : true,    //If the rotation controls should be shown
+                    minLoadingTime: 200, //The minimum amount of time in ms the loading animation should be shown (by default it shows the images immediately)
+                    wheelZoomSpeed: 100, //The speed of the zoom when using the mouse wheel
                 };
 
     $(window).on('load', function() {

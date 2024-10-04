@@ -1,3 +1,7 @@
+body.no-scroll {
+    overflow: hidden; /* Disable scrolling */
+}
+
 .panWrapper {
     position: fixed;
     width: 100%;
@@ -35,35 +39,36 @@
     margin: 0 10px;
     display: inline-block;
     z-index: 2;
+    filter: drop-shadow(0px 0px 1px rgba(0, 0, 0, 0.5)); /* Slight shadow so that the controls can easily seen in any background */
     cursor: pointer;
 }
 
 .panWrapper a.controls.in {
-    background-image: url('img/zoomIn.png');
+    background-image: url('img/zoomIn.svg');
 }
 
 .panWrapper a.controls.out {
-    background-image: url('img/zoomOut.png');
+    background-image: url('img/zoomOut.svg');
 }
 
 .panWrapper a.controls.close {
     position: absolute;
-    background-image: url('img/close.png');
+    background-image: url('img/close.svg');
     left: auto;
     right: 30px;
     top: 30px;
 }
 
 .panWrapper a.controls.rc {
-    background-image: url('img/rotatecw.png');
+    background-image: url('img/rotatecw.svg');
 }
 
 .panWrapper a.controls.ra {
-    background-image: url('img/rotateaw.png');
+    background-image: url('img/rotateaw.svg');
 }
 
 .panWrapper a.controls.link {
-    background-image: url('img/link.png');
+    background-image: url('img/link.svg');
 }
 
 /* Hidden by default */

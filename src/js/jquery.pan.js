@@ -14,6 +14,31 @@ https://github.com/jmalarcon/jquery.pan
     var init = true;    //Private var to flag the first time the method is called
     var pageOptions;    //The options stablished for the plugin in the page on initialization
 
+    //Thottle function that wraps an event handler and prevents too many calls per scond to certain events
+    function throttle(func, limit) {
+        let lastFunc;
+        let lastRan;
+
+        return function() {
+            const context = this;
+            const args = arguments;
+
+            if (!lastRan) {
+                func.apply(context, args);
+                lastRan = Date.now();
+            } else {
+                clearTimeout(lastFunc);
+                lastFunc = setTimeout(function() {
+                    if ((Date.now() - lastRan) >= limit) {
+                        func.apply(context, args);
+                        lastRan = Date.now();
+                    }
+                }, limit - (Date.now() - lastRan));
+            }
+        };
+    }
+
+
     $.fn.extend({
 
         pan: function (options) {   //, init = true, addImage = true
@@ -24,7 +49,8 @@ https://github.com/jmalarcon/jquery.pan
                 //Default options
                 var defOptions = {
                     showRotationControls : true,    //If the rotation controls should be shown
-                    minLoadingTime: 0 //The minimum amount of time in ms the loading animation should be shown (by default it shows the images immediately)
+                    minLoadingTime: 0, //The minimum amount of time in ms the loading animation should be shown (by default it shows the images immediately)
+                    wheelZoomSpeed: 100,    //The speed of the zoom in and out with the mouse wheel (in ms)
                 };
 
                 //To keep backwards compatibility (until version 4.x it has just one boolean option to show the rotation controls)
@@ -37,14 +63,15 @@ https://github.com/jmalarcon/jquery.pan
                 pageOptions = $.extend(defOptions, options);
 
                 var panWrapper = document.createElement('div');
-                $(panWrapper).addClass("panWrapper");
+                var $panWrapper = $(panWrapper);
+                $panWrapper.addClass("panWrapper");
 
                 var panImg = document.createElement('img');
                 $(panImg).addClass("i").css("position", "absolute");
 
                 var loadingImg = document.createElement('div');
                 $(loadingImg).attr('id', 'loading').addClass("loading");
-                $(panWrapper).append(loadingImg);
+                $panWrapper.append(loadingImg);
 
                 var buttonsWrapper = document.createElement('div');
                 $(buttonsWrapper).addClass("buttonsWrapper");
@@ -70,7 +97,7 @@ https://github.com/jmalarcon/jquery.pan
 
                 var close = document.createElement('a');
                 $(close).addClass("controls close");
-                $(panWrapper).append(close);
+                $panWrapper.append(close);
 
                 //Add buttons to the buttons wrapper in the right order
                 $(buttonsWrapper).append(zi); //Zoom in
@@ -83,8 +110,8 @@ https://github.com/jmalarcon/jquery.pan
                 }
                 $(buttonsWrapper).append(zo); //Zoom out
 
-                $(panWrapper).append(panImg);   //Zoomed image container
-                $(panWrapper).append(buttonsWrapper);   //Buttons container
+                $panWrapper.append(panImg);   //Zoomed image container
+                $panWrapper.append(buttonsWrapper);   //Buttons container
                 $("body").append(panWrapper);
 
                 $(zi).on('click', function (e) {
@@ -126,6 +153,8 @@ https://github.com/jmalarcon/jquery.pan
                         panImg.css({ 'transform': 'rotate(0)' });
                         //Remove possible links
                         $(link).removeAttr("href").removeAttr("target");
+                        //Show the body scroll again
+                        window.document.body.classList.remove('no-scroll');
                     });
                 });
 
@@ -133,9 +162,16 @@ https://github.com/jmalarcon/jquery.pan
                     $(close).trigger('click');
                 });
 
-                $(panWrapper).on('mousemove touchmove', function (e) {
+                $panWrapper.on('mousemove', function (e) {
                     panInit(e);
                 });
+
+                //To make it passive (and enhance the CLS metric) I use the JS event directly
+                panWrapper.addEventListener('touchmove', throttle(function (e) {
+                        panInit(e);
+                    }, pageOptions.wheelZoomSpeed),    //One call per wheelZoomSpeed
+                    { passive: true }
+                );
 
                 $("body").on('keydown', function (e) {
                     if (e.keyCode == 27) {
@@ -143,16 +179,17 @@ https://github.com/jmalarcon/jquery.pan
                     }
                 });
 
-                $(panWrapper).mousewheel(function (wheelEvent) {
+                //Passive wheel event to zoom in and out
+                panWrapper.addEventListener('wheel', throttle(function (wheelEvent) {
+                        if (wheelEvent.deltaY > 0)
+                            $(zo).trigger('click');
+                        else
+                            $(zi).trigger('click');
 
-                    if (wheelEvent.deltaY > 0)
-                        $(zo).trigger('click');
-                    else
-                        $(zi).trigger('click');
-
-                    panInit(wheelEvent);
-
-                });
+                        panInit(wheelEvent);
+                    }, pageOptions.wheelZoomSpeed),
+                    { passive: true }
+                );
             }
 
             //Finds the image elements in the element passed as argument, or one of its descendants.
@@ -211,14 +248,15 @@ https://github.com/jmalarcon/jquery.pan
             }
 
             function panInit(event) {
-                event.preventDefault();
+                //CAN'T USE event.preventDefault(); BECAUSE IT'S A PASSIVE HANDLER FOR SOME EVENTS!! (wheel & touchmove)
+                //That's because of CLS metrics in Google Lighthouse that affect performance and SEO
                 var panImg = $(".panWrapper img.i");
                 var panWrapper = $(".panWrapper");
 
                 var w = parseInt(panImg.css("width"));  //Image width
                 var h = parseInt(panImg.css("height")); //Image height
-                var vpW = $(panWrapper).width();   //Viewport width
-                var vpH = $(panWrapper).height();   //Viewport height
+                var vpW = panWrapper.width();   //Viewport width
+                var vpH = panWrapper.height();   //Viewport height
 
                 //Swap dimensions if image is rotated from the original angle (0)
                 var angle = parseInt((panImg.data('rotAngle'))) || 0;
@@ -240,14 +278,14 @@ https://github.com/jmalarcon/jquery.pan
                 //Left position of the pointer in page (first, try mouse, then try jQuery touch, default case native event touch for old jQuery versions), and in Viewport (substracting the scroll from left)
                 var posOfPointerInPageX = __getPointerPosX(event),
                     posOfPointerInViewportX = posOfPointerInPageX - scrollHOffset,
-                    vpW = $(panWrapper).width();   //Viewport width
+                    vpW = panWrapper.width();   //Viewport width
                 if (posOfPointerInViewportX < 0) posOfPointerInViewportX = 0; //In touch devices this can be slightly outside the viewport boundaries
                 if (posOfPointerInViewportX > vpW) posOfPointerInViewportX = vpW;
 
                 //Top position of the pointer in page (first, try mouse, then try jQuery touch, default case native event touch for old jQuery versions), and in Viewport (substracting the scroll from top)
                 var posOfPointerInPageY = __getPointerPosY(event),
                     posOfPointerInViewportY = posOfPointerInPageY - scrollVOffset,
-                    vpH = $(panWrapper).height();   //Viewport height
+                    vpH = panWrapper.height();   //Viewport height
                 if (posOfPointerInViewportY < 0) posOfPointerInViewportY = 0; //In touch devices this can be slightly outside the viewport boundaries
                 if (posOfPointerInViewportY > vpH) posOfPointerInViewportY = vpH;
 
@@ -363,6 +401,12 @@ https://github.com/jmalarcon/jquery.pan
                     $('#loading').addClass('loading');
                     //Hide the previous image if any
                     var imgViewer = $('.panWrapper img.i').css('display', 'none').attr('src', '');
+
+                    //Prevent body scroll because of the wheel event using the .no-scroll CSS class in the body
+                    //Can't use the preventDefault in the wheel event because it's passive
+                    window.document.body.classList.add('no-scroll');
+
+                    //Show the viewer
                     $(".panWrapper").show();
                     imgViewer.css("width", "auto").attr("src", big).on('load', function () {
                         var target = this;
@@ -392,69 +436,4 @@ https://github.com/jmalarcon/jquery.pan
         }
     });
 
-    var prefix = "", _addEventListener, onwheel, support;
-
-    if (window.addEventListener) {
-        _addEventListener = "addEventListener";
-    } else {
-        _addEventListener = "attachEvent";
-        prefix = "on";
-    }
-
-    if (document.onmousewheel !== undefined) {
-        support = "mousewheel";
-    }
-    try {
-        WheelEvent("wheel");
-        support = "wheel";
-    } catch (e) { }
-    if (!support) {
-        support = "DOMMouseScroll";
-    }
-
-    window.addWheelListener = function (elem, callback, useCapture) {
-        _addWheelListener(elem, support, callback, useCapture);
-
-        if (support == "DOMMouseScroll") {
-            _addWheelListener(elem, "MozMousePixelScroll", callback, useCapture);
-        }
-    };
-
-    function _addWheelListener(elem, eventName, callback, useCapture) {
-        elem[_addEventListener](prefix + eventName, support == "wheel" ? callback : function (originalEvent) {
-            !originalEvent && (originalEvent = window.event);
-
-            var event = {
-                originalEvent: originalEvent,
-                target: originalEvent.target || originalEvent.srcElement,
-                type: "wheel",
-                deltaMode: originalEvent.type == "MozMousePixelScroll" ? 0 : 1,
-                deltaX: 0,
-                delatZ: 0,
-                pageX: originalEvent.pageX,
-                pageY: originalEvent.pageY,
-                preventDefault: function () {
-                    originalEvent.preventDefault ?
-                        originalEvent.preventDefault() :
-                        originalEvent.returnValue = false;
-                }
-            };
-
-            if (support == "mousewheel") {
-                event.deltaY = - 1 / 40 * originalEvent.wheelDelta;
-                originalEvent.wheelDeltaX && (event.deltaX = - 1 / 40 * originalEvent.wheelDeltaX);
-            } else {
-                event.deltaY = originalEvent.detail;
-            }
-
-            return callback(event);
-
-        }, useCapture || false);
-    }
-
-    $.fn.mousewheel = function (handler) {
-        return this.each(function () {
-            window.addWheelListener(this, handler, true);
-        });
-    };
 })(jQuery);

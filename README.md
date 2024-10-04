@@ -12,8 +12,8 @@ Features:
 - Image rotation support with zoom and pan
 - Link button to open links if the image has a wrapping link (in any parent element)
 - Support for mobile devices. You can pan by dragging the zoomed image
-- Support for all modern desktop and mobile browsers and support for Internet Explorer from version 10
-- Just 2KB minified and gzipped
+- Support for all modern desktop and mobile browsers
+- v6.0 removed support for Internet Explorer ⚠️
 
 ## Getting Started
 
@@ -60,6 +60,7 @@ The available properties for this object in this version are:
 
 - **`showRotationControls`**: parameter to indicate if the rotation of images should be allowed or not.
 - **`minLoadingTime`**: indicates the minimum amount of time in milliseconds that the loading animation should be shown (by default it shows the images immediately as soon as they are loaded)
+- **`wheelZoomSpeed`**: the speed of the zoom when using the mouse wheel. It can be a number greater than 0. The default value is 100. It is the number of milliseconds between wheel events to speed up (lower values) or down (higher values) the zoom speed. It is useful to avoid zooming too fast or too slow with the mouse wheel in desktop or the touch event in mobile devices. If you set it to 0, the zoom speed will be too fast and it will be difficult to control the zoom level. If you set much higher than 200 or 300, it will be too slow to zoom in or out. It is recommended to set it between 50 and 200.
 
 By default it shows the rotation controls:
 
